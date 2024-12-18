@@ -61,6 +61,7 @@ class B2S():
             "-o",
             self.file_path + "/output.sqlite"
         ]
+        print(command)
         result = subprocess.run(command, capture_output=True, text=True)
         print(result.stdout)
         
@@ -70,6 +71,8 @@ class BD():
         self.old = old
         self.new = new
         self.file_name = os.path.dirname(os.path.abspath(self.old)) + '/' + os.path.basename(old) + '-' + os.path.basename(new) + ".diff"
+        self.out_path = os.path.dirname(os.path.abspath(self.old))
+        self.output = self.out_path + "/output.sqlite"
     
     def SqliteOutput(self, file_name, sql):
         conn = sqlite3.connect(file_name)
@@ -80,29 +83,32 @@ class BD():
         conn.close()
         return rows
     
-    def UpdateDict(self, name, old_context=None, new_context=None):
+    def UpdateDict(self, name, name2=None, old_context=None, new_context=None):
         if not old_context:
             old_context = ""
         if not new_context:
             new_context = ""
         diff_dict = {
             "name": name,
+            "name2": name2,
             "old": old_context,
             "new": new_context
         }
         return diff_dict
     
     def NewFuncDiff(self):
-        unmatch = self.SqliteOutput(os.path.dirname(os.path.abspath(self.old)) + "/output.sqlite", "select address, name from unmatched")
+        primary_unmatch = self.SqliteOutput(self.output, "select address, name from unmatched where type = 'primary'")
         li("[+] Newly added functions")
-        for row in unmatch:
+        for row in primary_unmatch:
             address, name = row
             print(address + ' | ' + name)
 
             functions = self.SqliteOutput(self.new, f"select prototype, pseudocode from functions where address = 0x{address}")
             prototype, pseudocode = functions[0]
+            if not prototype:
+                break
             pp = prototype + pseudocode
-            Func_diff = self.UpdateDict(name, None, pp)
+            Func_diff = self.UpdateDict(name, None, None, pp)
 
             diff = difflib.unified_diff(Func_diff['old'].splitlines(), Func_diff['new'].splitlines(), fromfile=name, tofile=name, lineterm='')
             # for line in diff:
@@ -110,13 +116,33 @@ class BD():
             with open(f'{self.file_name}', 'a+') as file:
                 for line in diff:
                     file.write(f'{line}\n')  
+        
+        secondary_unmatch = self.SqliteOutput(self.output, "select address, name from unmatched where type = 'secondary'")
+        li("[+] Subtracting function")
+        for row in secondary_unmatch:
+            address, name = row
+            print(address + ' | ' + name)
+
+            functions = self.SqliteOutput(self.old, f"select prototype, pseudocode from functions where address = 0x{address}")
+            prototype, pseudocode = functions[0]
+            if not prototype:
+                break
+            pp = prototype + pseudocode
+            Func_diff = self.UpdateDict(name, None, None, pp)
+
+            diff = difflib.unified_diff(Func_diff['new'].splitlines(), Func_diff['old'].splitlines(), fromfile=name, tofile=name, lineterm='')
+            # for line in diff:
+            #     print(line, end='\n')
+            with open(f'{self.file_name}', 'a+') as file:
+                for line in diff:
+                    file.write(f'{line}\n')
     
-    def PartialDiff(self):
-        unmatch = self.SqliteOutput("output.sqlite", "select address, address2, name from results where type = 'partial'")
-        li("[+] PartialDiff")
+    def PDiff(self, type):
+        unmatch = self.SqliteOutput(self.output, f"select address, address2, name, name2 from results where type = '{type}'")
+        li(f"[+] {type}Diff")
         for row in unmatch:
-            address, address2, name = row
-            print(address + ' | ' + address2 + '| '+ name)
+            address, address2, name, name2 = row
+            print(address + ' | ' + address2 + ' | '+ name + ' | ' + name2)
 
             functions = self.SqliteOutput(self.old, f"select prototype, pseudocode from functions where address = 0x{address}")
             prototype, pseudocode = functions[0]
@@ -125,12 +151,18 @@ class BD():
             functions = self.SqliteOutput(self.new, f"select prototype, pseudocode from functions where address = 0x{address2}")
             prototype, pseudocode = functions[0]
             pp2 = prototype + pseudocode
-            Func_diff = self.UpdateDict(name, pp1, pp2)
+            Func_diff = self.UpdateDict(name, name2, pp1, pp2)
 
-            diff = difflib.unified_diff(Func_diff['old'].splitlines(), Func_diff['new'].splitlines(), fromfile=name, tofile=name, lineterm='')
+            diff = difflib.unified_diff(Func_diff['old'].splitlines(), Func_diff['new'].splitlines(), fromfile=name, tofile=name2, lineterm='')
             with open(f'{self.file_name}', 'a+') as file:
                 for line in diff:
-                    file.write(f'{line}\n')  
+                    file.write(f'{line}\n')
+    
+    def PartialDiff(self):
+        self.PDiff("partial")
+    
+    def MultimatchDiff(self):
+        self.PDiff("multimatch")
     
     def GistCommand(self, *args):
         full_command = ["gh", "gist"] + list(args)
@@ -167,6 +199,7 @@ class BD():
         desc = B2S.GetConfig(self)
         self.gist_desc = desc['gist']['desc']
         self.PartialDiff()
+        self.MultimatchDiff()
         self.NewFuncDiff()
         self.GistUpload()
 
