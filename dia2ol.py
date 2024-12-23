@@ -67,12 +67,16 @@ class B2S():
         
 # BinaryDiff
 class BD():
-    def __init__(self, old, new) -> None:
+    def __init__(self, old, new, local) -> None:
         self.old = old
         self.new = new
+        self.local = local
         self.file_name = os.path.dirname(os.path.abspath(self.old)) + '/' + os.path.basename(old) + '-' + os.path.basename(new) + ".diff"
         self.out_path = os.path.dirname(os.path.abspath(self.old))
         self.output = self.out_path + "/output.sqlite"
+        if local:
+            self.old_diff_filename = os.path.dirname(os.path.abspath(self.old)) + '/' + os.path.basename(old) + ".cc"
+            self.new_diff_filename = os.path.dirname(os.path.abspath(self.old)) + '/' + os.path.basename(new) + ".cc"
     
     def SqliteOutput(self, file_name, sql):
         conn = sqlite3.connect(file_name)
@@ -95,6 +99,11 @@ class BD():
             "new": new_context
         }
         return diff_dict
+
+    def Write_File(self, file_name, content):
+        with open(f'{file_name}', 'a+') as file:
+            file.write(f'{content}\n\n')
+            #file.write('\n' * 2 + '-' * 0x60 + '\n')
     
     def NewFuncDiff(self):
         primary_unmatch = self.SqliteOutput(self.output, "select address, name from unmatched where type = 'primary'")
@@ -108,14 +117,18 @@ class BD():
             if not prototype:
                 break
             pp = prototype + pseudocode
-            Func_diff = self.UpdateDict(name, None, None, pp)
+            if not self.local:
+                Func_diff = self.UpdateDict(name, None, None, pp)
 
-            diff = difflib.unified_diff(Func_diff['old'].splitlines(), Func_diff['new'].splitlines(), fromfile=name, tofile=name, lineterm='')
-            # for line in diff:
-            #     print(line, end='\n')
-            with open(f'{self.file_name}', 'a+') as file:
-                for line in diff:
-                    file.write(f'{line}\n')  
+                diff = difflib.unified_diff(Func_diff['old'].splitlines(), Func_diff['new'].splitlines(), fromfile=name, tofile=name, lineterm='')
+                # for line in diff:
+                #     print(line, end='\n')
+                with open(f'{self.file_name}', 'a+') as file:
+                    for line in diff:
+                        file.write(f'{line}\n')  
+            if self.local:
+                self.Write_File(self.new_diff_filename, pp)
+                self.Write_File(self.old_diff_filename, prototype + '{\n}')
         
         secondary_unmatch = self.SqliteOutput(self.output, "select address, name from unmatched where type = 'secondary'")
         li("[+] Subtracting function")
@@ -128,14 +141,19 @@ class BD():
             if not prototype:
                 break
             pp = prototype + pseudocode
-            Func_diff = self.UpdateDict(name, None, None, pp)
+            if not self.local:
+                Func_diff = self.UpdateDict(name, None, None, pp)
 
-            diff = difflib.unified_diff(Func_diff['new'].splitlines(), Func_diff['old'].splitlines(), fromfile=name, tofile=name, lineterm='')
-            # for line in diff:
-            #     print(line, end='\n')
-            with open(f'{self.file_name}', 'a+') as file:
-                for line in diff:
-                    file.write(f'{line}\n')
+                diff = difflib.unified_diff(Func_diff['new'].splitlines(), Func_diff['old'].splitlines(), fromfile=name, tofile=name, lineterm='')
+                # for line in diff:
+                #     print(line, end='\n')
+                with open(f'{self.file_name}', 'a+') as file:
+                    for line in diff:
+                        file.write(f'{line}\n')
+            
+            if self.local:
+                self.Write_File(self.old_diff_filename, pp)
+                print(pp)
     
     def PDiff(self, type):
         unmatch = self.SqliteOutput(self.output, f"select address, address2, name, name2 from results where type = '{type}'")
@@ -151,12 +169,16 @@ class BD():
             functions = self.SqliteOutput(self.new, f"select prototype, pseudocode from functions where address = 0x{address2}")
             prototype, pseudocode = functions[0]
             pp2 = prototype + pseudocode
-            Func_diff = self.UpdateDict(name, name2, pp1, pp2)
-
-            diff = difflib.unified_diff(Func_diff['old'].splitlines(), Func_diff['new'].splitlines(), fromfile=name, tofile=name2, lineterm='')
-            with open(f'{self.file_name}', 'a+') as file:
-                for line in diff:
-                    file.write(f'{line}\n')
+            if not self.local:
+                Func_diff = self.UpdateDict(name, name2, pp1, pp2)
+                
+                diff = difflib.unified_diff(Func_diff['old'].splitlines(), Func_diff['new'].splitlines(), fromfile=name, tofile=name2, lineterm='')
+                with open(f'{self.file_name}', 'a+') as file:
+                    for line in diff:
+                        file.write(f'{line}\n')
+            if self.local:
+                self.Write_File(self.old_diff_filename, pp1)
+                self.Write_File(self.new_diff_filename, pp2)
     
     def PartialDiff(self):
         self.PDiff("partial")
@@ -196,19 +218,24 @@ class BD():
 
     def main(self):
         #self.NewFuncDiff()
-        desc = B2S.GetConfig(self)
-        self.gist_desc = desc['gist']['desc']
-        self.PartialDiff()
-        self.MultimatchDiff()
-        self.NewFuncDiff()
-        self.GistUpload()
-
+        if not self.local:
+            desc = B2S.GetConfig(self)
+            self.gist_desc = desc['gist']['desc']
+            self.PartialDiff()
+            self.MultimatchDiff()
+            self.NewFuncDiff()
+            self.GistUpload()
+        else:
+            self.PartialDiff()
+            self.MultimatchDiff()
+            self.NewFuncDiff()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Diff old_file and new_file.')
     
     parser.add_argument('--old', type=str, help='The old file')
     parser.add_argument('--new', type=str, help='The new file')
+    parser.add_argument('--local', help='Local Diff', action="store_const", const=1, default=0)
 
     args = parser.parse_args()
 
@@ -224,6 +251,5 @@ if __name__ == "__main__":
     binary = B2S(args.old, args.new, file_path)
     binary.SaveSqlite()
     li('[+] Sqlite Saved')
-    bd = BD(args.old + ".sqlite", args.new + ".sqlite")
+    bd = BD(args.old + ".sqlite", args.new + ".sqlite", args.local)
     bd.main()
-
