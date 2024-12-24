@@ -1,0 +1,3 @@
+testcases/
+**/__pycache__/
+.gitignore

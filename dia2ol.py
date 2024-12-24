@@ -15,17 +15,21 @@ ll = lambda x : print('\x1b[01;38;5;1m' + str(x) + '\x1b[0m')
 
 # Binary2Sqlite
 class B2S():
-    def __init__(self, old, new, file_path) -> None:
-        self.old = old
-        self.new = new
-        self.file_path = file_path
-    
+    def __init__(self, oldfpath, newfpath) -> None:
+        # must be abspath
+        self.old = {"fpath": oldfpath, 
+                    "fname": os.path.basename(oldfpath), 
+                    "dname": os.path.dirname(oldfpath) }
+        self.new = {"fpath": newfpath, 
+                    "fname": os.path.basename(newfpath), 
+                    "dname": os.path.dirname(newfpath) }
+            
     def GetConfig(self):
         self.config = configparser.ConfigParser()
         self.config.read(current_path + "/setting.cfg")
         return self.config
     
-    def ExecuteCommand(self, ida_path, i):
+    def ExecuteCommand(self, ida_path, i, if_new):
         command = [
             ida_path,
             "-A",
@@ -33,7 +37,7 @@ class B2S():
             "-S" + current_path + "/diaphora/diaphora.py",
             i
         ]
-        sqlite_name = i + ".sqlite"
+        sqlite_name = i + (".new" if if_new else ".old") + ".sqlite"
         os.environ['DIAPHORA_AUTO'] = "1"
         os.environ['DIAPHORA_EXPORT_FILE'] = sqlite_name
         li(f"{i}(binary) to {sqlite_name}")
@@ -45,21 +49,24 @@ class B2S():
     def SaveSqlite(self):
         self.GetConfig()
         ida_path = self.config['ida_path']['path']
-        FileName = [self.old, self.new]
+        FileName = [self.old["fpath"], self.new["fpath"]]
         li('[*] Multi-process startup')
-        with concurrent.futures.ProcessPoolExecutor(max_workers = 2) as executor:
-            futures = [executor.submit(self.ExecuteCommand, ida_path, i) for i in FileName]
+        # with concurrent.futures.ProcessPoolExecutor(max_workers = 2) as executor:
+        #     futures = [executor.submit(self.ExecuteCommand, ida_path, i) for i in FileName]
 
-            for future in concurrent.futures.as_completed(futures):
-                future.result()  
-        
+        #     for future in concurrent.futures.as_completed(futures):
+        #         future.result()  
+
+        self.ExecuteCommand(ida_path, self.old["fpath"], False)
+        self.ExecuteCommand(ida_path, self.new["fpath"], True)
+
         command = [
             sys.executable,
             current_path + "/diaphora/diaphora.py",
-            self.old + ".sqlite",
-            self.new + ".sqlite",
+            self.old["fpath"] + ".old.sqlite",
+            self.new["fpath"] + ".new.sqlite",
             "-o",
-            self.file_path + "/output.sqlite"
+            self.new["fpath"] + ".new.sqlite.output.sqlite"
         ]
         print(command)
         result = subprocess.run(command, capture_output=True, text=True)
@@ -68,17 +75,36 @@ class B2S():
 # BinaryDiff
 class BD():
     def __init__(self, old, new, local) -> None:
+        
+        self._old = {"fpath": old, 
+                    "fname": os.path.basename(old), 
+                    "dname": os.path.dirname(old) }
+        self._new = {"fpath": new, 
+                    "fname": os.path.basename(new), 
+                    "dname": os.path.dirname(new) }
+        # self.old = old
+        # self.new = new
+        # self.local = local
+        # self.file_name = os.path.dirname(os.path.abspath(self.old)) + '/' + os.path.basename(old) + '-' + os.path.basename(new) + ".diff"
+        # self.out_path = os.path.dirname(os.path.abspath(self.old))
+        # self.output = self.out_path + "/output.sqlite"
+        # if local:
+        #     self.old_diff_filename = os.path.dirname(os.path.abspath(self.old)) + '/' + os.path.basename(old) + ".cc"
+        #     self.new_diff_filename = os.path.dirname(os.path.abspath(self.old)) + '/' + os.path.basename(new) + ".cc"
+
         self.old = old
         self.new = new
         self.local = local
-        self.file_name = os.path.dirname(os.path.abspath(self.old)) + '/' + os.path.basename(old) + '-' + os.path.basename(new) + ".diff"
-        self.out_path = os.path.dirname(os.path.abspath(self.old))
-        self.output = self.out_path + "/output.sqlite"
+        self.file_name = self._new["fname"] + ".diff"
+        self.out_path = self._new["dname"]
+        self.output = self._new["fpath"]+ ".output.sqlite"
         if local:
-            self.old_diff_filename = os.path.dirname(os.path.abspath(self.old)) + '/' + os.path.basename(old) + ".cc"
-            self.new_diff_filename = os.path.dirname(os.path.abspath(self.old)) + '/' + os.path.basename(new) + ".cc"
+            self.old_diff_filename = self._old["fpath"] + ".cc"
+            self.new_diff_filename = self._new["fpath"] + ".cc"
+
     
     def SqliteOutput(self, file_name, sql):
+        #li("connecting %s"%(file_name))
         conn = sqlite3.connect(file_name)
         cursor = conn.cursor()
 
@@ -109,6 +135,7 @@ class BD():
         primary_unmatch = self.SqliteOutput(self.output, "select address, name from unmatched where type = 'primary'")
         li("[+] Newly added functions")
         for row in primary_unmatch:
+            li("NewFuncDiff: Write_File(self.new_diff_filename, pp)")
             address, name = row
             print(address + ' | ' + name)
 
@@ -127,6 +154,7 @@ class BD():
                     for line in diff:
                         file.write(f'{line}\n')  
             if self.local:
+                
                 self.Write_File(self.new_diff_filename, pp)
                 self.Write_File(self.old_diff_filename, prototype + '{\n}')
         
@@ -153,7 +181,7 @@ class BD():
             
             if self.local:
                 self.Write_File(self.old_diff_filename, pp)
-                print(pp)
+                #print(pp)
     
     def PDiff(self, type):
         unmatch = self.SqliteOutput(self.output, f"select address, address2, name, name2 from results where type = '{type}'")
@@ -230,26 +258,91 @@ class BD():
             self.MultimatchDiff()
             self.NewFuncDiff()
 
+def is_elf_or_exe(file_path):
+    with open(file_path, 'rb') as file:
+        magic = file.read(4)
+        
+    # ELF 文件的魔术数字
+    if magic.startswith(b'\x7fELF'):
+        return "ELF"
+    # PE (EXE) 文件的魔术数字
+    elif magic.startswith(b'MZ'):
+        return "EXE"
+    else:
+        return "Unknown"
+    
+def get_match_files(dir1, dir2):
+    def get_files(directory):
+        # 只获取elf和exe文件
+        files = []
+        for root, dirs, filenames in os.walk(directory):
+            for filename in filenames:
+                # 构建相对路径，使得文件路径是相对于目录的
+                rel_path = os.path.relpath(os.path.join(root, filename), directory)
+                if is_elf_or_exe(os.path.join(directory, rel_path)) is ("ELF" or "EXE"):
+                    #print(rel_path)
+                    files.append(rel_path)
+        return set(files)
+
+    files_in_dir1 = get_files(dir1)
+    files_in_dir2 = get_files(dir2)
+    
+    # 找出在两个目录中都存在的文件
+    common_files = files_in_dir1 & files_in_dir2
+    
+    # 找出只在第一个目录中存在的文件
+    only_in_dir1 = files_in_dir1 - files_in_dir2
+    
+    # 找出只在第二个目录中存在的文件
+    only_in_dir2 = files_in_dir2 - files_in_dir1
+
+    return [common_files, only_in_dir1|only_in_dir2]
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Diff old_file and new_file.')
     
-    parser.add_argument('--old', type=str, help='The old file')
-    parser.add_argument('--new', type=str, help='The new file')
+    parser.add_argument('--old_file', type=str, help='The old file')
+    parser.add_argument('--new_file', type=str, help='The new file')
+    parser.add_argument('--old_dir', type=str, help='The old directory')
+    parser.add_argument('--new_dir', type=str, help='The new directory')
     parser.add_argument('--local', help='Local Diff', action="store_const", const=1, default=0)
 
     args = parser.parse_args()
 
-    if args.old is None and args.new is None:
-        parser.print_help()
-        sys.exit(1)
-    elif args.old is None or args.new is None:
-        print("Error: Both --old and --new parameters are required.")
-        parser.print_help()
-        sys.exit(1)
+    # if args.old is None and args.new is None:
+    #     parser.print_help()
+    #     sys.exit(1)
+    # elif args.old is None or args.new is None:
+    #     print("Error: Both --old and --new parameters are required.")
+    #     parser.print_help()
+    #     sys.exit(1)
     
-    file_path = os.path.dirname(os.path.abspath(args.old))
-    binary = B2S(args.old, args.new, file_path)
-    binary.SaveSqlite()
-    li('[+] Sqlite Saved')
-    bd = BD(args.old + ".sqlite", args.new + ".sqlite", args.local)
-    bd.main()
+    if args.old_file and args.new_file:
+        file_path = os.path.dirname(os.path.abspath(args.old_file))
+        binary = B2S(args.old_file, args.new_file)
+        binary.SaveSqlite()
+        li('[+] Sqlite Saved')
+        bd = BD(args.old_file + ".sqlite", args.new_file + ".sqlite", args.local)
+        bd.main()
+    elif args.old_dir and args.new_dir:
+        old_absdir = (os.path.abspath(args.old_dir))
+        new_absdir = (os.path.abspath(args.new_dir))
+        li("newdir:%s ; olddir:%s"%(old_absdir, new_absdir))
+        matched_files, dismatched_files  = get_match_files(old_absdir, new_absdir)
+        for file in matched_files:
+            # step1 get ida pro pseudo code
+            binary = B2S(os.path.join(old_absdir, file), os.path.join(new_absdir, file))
+            binary.SaveSqlite()
+            li('[+] Sqlite Saved')
+            # step2 get result from database 
+            bd = BD(os.path.join(old_absdir, file) + ".old.sqlite", os.path.join(new_absdir, file) + ".new.sqlite", args.local)
+            bd.main()
+            # ./new/aa
+            # ./old/bb
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+
+
+
