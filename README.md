@@ -83,19 +83,21 @@ desc=BinaryDiff
 
 ### 三、运行
 
-需要设置--old和--new参数，--old参数是patch前的程序、--new是patch后的程序，运行之后等待即可
+需要设置`--old_file`和`--new_file`参数或者`--old_dir`和`--new_dir`参数，`--old_fil`参数是patch前的程序、`--new_file`是patch后的程序，`--old_dir`参数是patch前的程序所在目录、`--new_dir`是patch后的程序所在目录，运行之后等待即可
 
 最后出现`[+] open: https://www.z1r0.top/binarydiff/?`则成功
 
 ```
-usage: get_code.py [-h] [--old OLD] [--new NEW]
+usage: dia2ol.py [-h] (--old_file OLD_FILE --new_file NEW_FILE | --old_dir OLD_DIR --new_dir NEW_DIR)
 
-Diff old_file and new_file.
+Diff old_file(s) and new_file(s).
 
 options:
   -h, --help  show this help message and exit
-  --old OLD   The old file
-  --new NEW   The new file
+  --old_file OLD_FILE   The old file
+  --new_file NEW_FILE   The new file
+  --old_dir  OLD_DIR    The old directory
+  --new_dir  NEW_DIR    The new directory
 ```
 
 #### 用法样例
