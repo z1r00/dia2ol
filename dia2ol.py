@@ -7,6 +7,7 @@ import sqlite3
 import sys
 import configparser
 import concurrent.futures
+from multiprocessing import Pool
 
 current_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -50,7 +51,7 @@ class B2S():
         self.GetConfig()
         ida_path = self.config['ida_path']['path']
         FileName = [self.old["fpath"], self.new["fpath"]]
-        li('[*] Multi-process startup')
+        # li('[*] Multi-process startup')
         # with concurrent.futures.ProcessPoolExecutor(max_workers = 2) as executor:
         #     futures = [executor.submit(self.ExecuteCommand, ida_path, i) for i in FileName]
 
@@ -297,7 +298,17 @@ def get_match_files(dir1, dir2):
     only_in_dir2 = files_in_dir2 - files_in_dir1
 
     return [common_files, only_in_dir1|only_in_dir2]
-    
+
+def launch1diff(old_absdir, new_absdir, file, if_local):
+    # step1 get ida pro pseudo code and save the results to database
+    binary = B2S(os.path.join(old_absdir, file), os.path.join(new_absdir, file))
+    binary.SaveSqlite()
+    li('[+] Sqlite Saved')
+
+    # step2 get result from database 
+    bd = BD(os.path.join(old_absdir, file) + ".old.sqlite", os.path.join(new_absdir, file) + ".new.sqlite", if_local)
+    bd.main()
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Diff old_file and new_file.')
     
@@ -324,21 +335,18 @@ if __name__ == "__main__":
         li('[+] Sqlite Saved')
         bd = BD(args.old_file + ".sqlite", args.new_file + ".sqlite", args.local)
         bd.main()
+
     elif args.old_dir and args.new_dir:
         old_absdir = (os.path.abspath(args.old_dir))
         new_absdir = (os.path.abspath(args.new_dir))
         li("newdir:%s ; olddir:%s"%(old_absdir, new_absdir))
         matched_files, dismatched_files  = get_match_files(old_absdir, new_absdir)
-        for file in matched_files:
-            # step1 get ida pro pseudo code
-            binary = B2S(os.path.join(old_absdir, file), os.path.join(new_absdir, file))
-            binary.SaveSqlite()
-            li('[+] Sqlite Saved')
-            # step2 get result from database 
-            bd = BD(os.path.join(old_absdir, file) + ".old.sqlite", os.path.join(new_absdir, file) + ".new.sqlite", args.local)
-            bd.main()
-            # ./new/aa
-            # ./old/bb
+
+        with Pool(processes=8) as pool:
+            results = [pool.apply_async(launch1diff, args=(old_absdir, new_absdir, file, args.local,)) for file in matched_files]
+            for result in results:
+                result.get()
+
     else:
         parser.print_help()
         sys.exit(1)
