@@ -96,7 +96,7 @@ class BD():
         self.old = old
         self.new = new
         self.local = local
-        self.file_name = self._new["fname"] + ".diff"
+        self.file_name = os.path.join(self._new["dname"], self._old['fname'] + '-' + self._new["fname"] + ".diff")
         self.out_path = self._new["dname"]
         self.output = self._new["fpath"]+ ".output.sqlite"
         if local:
@@ -330,10 +330,10 @@ if __name__ == "__main__":
     
     if args.old_file and args.new_file:
         file_path = os.path.dirname(os.path.abspath(args.old_file))
-        binary = B2S(args.old_file, args.new_file)
+        binary = B2S(os.path.abspath(args.old_file), os.path.abspath(args.new_file))
         binary.SaveSqlite()
         li('[+] Sqlite Saved')
-        bd = BD(args.old_file + ".sqlite", args.new_file + ".sqlite", args.local)
+        bd = BD(os.path.abspath(args.old_file) + ".old.sqlite", os.path.abspath(args.new_file) + ".new.sqlite", args.local)
         bd.main()
 
     elif args.old_dir and args.new_dir:
