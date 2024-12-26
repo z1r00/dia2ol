@@ -136,13 +136,15 @@ class BD():
         primary_unmatch = self.SqliteOutput(self.output, "select address, name from unmatched where type = 'primary'")
         li("[+] Newly added functions")
         for row in primary_unmatch:
-            li("NewFuncDiff: Write_File(self.new_diff_filename, pp)")
+            #li("NewFuncDiff: Write_File(self.new_diff_filename, pp)")
             address, name = row
             print(address + ' | ' + name)
 
             functions = self.SqliteOutput(self.new, f"select prototype, pseudocode from functions where address = 0x{address}")
             prototype, pseudocode = functions[0]
             if not prototype:
+                break
+            if not pseudocode:
                 break
             pp = prototype + pseudocode
             if not self.local:
@@ -168,6 +170,8 @@ class BD():
             functions = self.SqliteOutput(self.old, f"select prototype, pseudocode from functions where address = 0x{address}")
             prototype, pseudocode = functions[0]
             if not prototype:
+                break
+            if not pseudocode:
                 break
             pp = prototype + pseudocode
             if not self.local:
