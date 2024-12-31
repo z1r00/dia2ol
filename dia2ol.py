@@ -273,6 +273,8 @@ def is_elf_or_exe(file_path):
     # PE (EXE) 文件的魔术数字
     elif magic.startswith(b'MZ'):
         return "EXE"
+    elif magic.startswith(b'\xCF\xFA\xED\xFE') or magic.startswith(b'\xCA\xFE\xBA\xBE') or magic.startswith(b'\xCE\xFA\xED\xFE'):
+        return "Mach-O"
     else:
         return "Unknown"
     
@@ -284,7 +286,7 @@ def get_match_files(dir1, dir2):
             for filename in filenames:
                 # 构建相对路径，使得文件路径是相对于目录的
                 rel_path = os.path.relpath(os.path.join(root, filename), directory)
-                if is_elf_or_exe(os.path.join(directory, rel_path)) is ("ELF" or "EXE"):
+                if is_elf_or_exe(os.path.join(directory, rel_path)) in ("ELF", "EXE", "Mach-O"):
                     #print(rel_path)
                     files.append(rel_path)
         return set(files)

@@ -88,16 +88,17 @@ desc=BinaryDiff
 最后出现`[+] open: https://www.z1r0.top/binarydiff/?`则成功
 
 ```
-usage: dia2ol.py [-h] (--old_file OLD_FILE --new_file NEW_FILE | --old_dir OLD_DIR --new_dir NEW_DIR)
+usage: dia2ol.py [-h] [--old_file OLD_FILE] [--new_file NEW_FILE] [--old_dir OLD_DIR] [--new_dir NEW_DIR] [--local]
 
-Diff old_file(s) and new_file(s).
+Diff old_file and new_file.
 
 options:
-  -h, --help  show this help message and exit
-  --old_file OLD_FILE   The old file
-  --new_file NEW_FILE   The new file
-  --old_dir  OLD_DIR    The old directory
-  --new_dir  NEW_DIR    The new directory
+  -h, --help           show this help message and exit
+  --old_file OLD_FILE  The old file
+  --new_file NEW_FILE  The new file
+  --old_dir OLD_DIR    The old directory
+  --new_dir NEW_DIR    The new directory
+  --local              Local Diff
 ```
 
 #### 用法样例
@@ -217,5 +218,7 @@ Error loading project specific Python script: module 'importlib' has no attribut
 1. windows平台上可能出现系统找不到指定文件，此时需要进入当前的python lib，将init中的shell=False改为shell=True
 
 ## To Do
-- 多个二进制文件同时diff
-- 优化速度
+- [+] 多个二进制文件同时diff(完成)
+- [+] 本地diff，vsocde直接进行比较（完成）
+- [-] 优化速度
+- [-] 本地diff，生成本地离线Web
