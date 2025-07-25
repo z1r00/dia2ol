@@ -83,7 +83,7 @@ desc=BinaryDiff
 
 ### 三、运行
 
-需要设置`--old_file`和`--new_file`参数或者`--old_dir`和`--new_dir`参数，`--old_fil`参数是patch前的程序、`--new_file`是patch后的程序，`--old_dir`参数是patch前的程序所在目录、`--new_dir`是patch后的程序所在目录，运行之后等待即可
+需要设置`--old_file`和`--new_file`参数或者`--old_dir`和`--new_dir`参数，`--old_file`参数是patch前的程序、`--new_file`是patch后的程序，`--old_dir`参数是patch前的程序所在目录、`--new_dir`是patch后的程序所在目录，运行之后等待即可，正常用--new_dir和--old_dir（可以多个二进制文件同时对比）
 
 最后出现`[+] open: https://www.z1r0.top/binarydiff/?`则成功
 
@@ -106,46 +106,42 @@ options:
 下载一个patch前的程序和一个patch后的程序
 
 ```
-wget https://msdl.microsoft.com/download/symbols/afd.sys/0C5C6994A8000/afd.sys -O afd.sys.x64.10.0.22621.1028
-wget https://msdl.microsoft.com/download/symbols/afd.sys/50989142A9000/afd.sys -O afd.sys.x64.10.0.22621.1415
+mkdir old && wget https://msdl.microsoft.com/download/symbols/afd.sys/0C5C6994A8000/afd.sys -O old/afd.sys
+mkdir new && wget https://msdl.microsoft.com/download/symbols/afd.sys/50989142A9000/afd.sys -O new/afd.sys
 ```
 
 执行脚本
 
 ```
-python3 /path/to/dia2ol.py --old afd.sys.x64.10.0.22621.1028 --new afd.sys.x64.10.0.22621.1415
+python3 /path/to/dia2ol.py --old_dir old --new_dir new
 ```
 
 结果回显
 
 ```
-[*] Multi-process startup
-/Users/z1r0/pwned/test/afd.sys.x64.10.0.22621.1028(binary) to /Users/z1r0/pwned/test/afd.sys.x64.10.0.22621.1028.sqlite
+olddir:/mypath/old ; newdir:/mypath/new
+{'afd.sys'}
+/mypath/old/afd.sys(binary) to /mypath/old/afd.sys.old.sqlite
+[*] wattings
+[OK] patch database blacklists
+[OK] patch http_request
+[OK] patch lumina
+[OK] patch 23945/udp
+BinDiff 7 (@377901646, Jun  7 2021), (c)2004-2011 zynamics GmbH, (c)2011-2021 Google LLC.
+BinExport 12 (@377901646, Jun  7 2021), (c)2004-2011 zynamics GmbH, (c)2011-2021 Google LLC.
+/Applications/IDA Pro 8.3/ida64.app/Contents/MacOS/plugins/lighthouse_plugin.py: undefined function __plugins__lighthouse_plugin.PLUGIN_ENTRY
+
+/mypath/new/afd.sys(binary) to /mypath/new/afd.sys.new.sqlite
 [*] watting
-/Users/z1r0/pwned/test/afd.sys.x64.10.0.22621.1415(binary) to /Users/z1r0/pwned/test/afd.sys.x64.10.0.22621.1415.sqlite
-[*] watting
+[OK] patch database blacklist
+[OK] patch http_request
+[OK] patch lumina
+[OK] patch 23945/udp
+BinDiff 7 (@377901646, Jun  7 2021), (c)2004-2011 zynamics GmbH, (c)2011-2021 Google LLC.
+BinExport 12 (@377901646, Jun  7 2021), (c)2004-2011 zynamics GmbH, (c)2011-2021 Google LLC.
+/Applications/IDA Pro 8.3/ida64.app/Contents/MacOS/plugins/lighthouse_plugin.py: undefined function __plugins__lighthouse_plugin.PLUGIN_ENTRY
 
-dlopen(/Users/z1r0/.idapro/plugins/bindiff7_ida64.dylib): dlopen(/Users/z1r0/.idapro/plugins/bindiff7_ida64.dylib, 0x0002): symbol not found in flat namespace '_root_node'
-/Users/z1r0/.idapro/plugins/bindiff7_ida64.dylib: can't load file
-
-dlopen(/Users/z1r0/.idapro/plugins/binexport12_ida64.dylib): dlopen(/Users/z1r0/.idapro/plugins/binexport12_ida64.dylib, 0x0002): symbol not found in flat namespace '_ph'
-/Users/z1r0/.idapro/plugins/binexport12_ida64.dylib: can't load file
-0.00s - Debugger warning: It seems that frozen modules are being used, which may
-0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
-0.00s - to python to disable frozen modules.
-0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
-
-
-dlopen(/Users/z1r0/.idapro/plugins/bindiff7_ida64.dylib): dlopen(/Users/z1r0/.idapro/plugins/bindiff7_ida64.dylib, 0x0002): symbol not found in flat namespace '_root_node'
-/Users/z1r0/.idapro/plugins/bindiff7_ida64.dylib: can't load file
-
-dlopen(/Users/z1r0/.idapro/plugins/binexport12_ida64.dylib): dlopen(/Users/z1r0/.idapro/plugins/binexport12_ida64.dylib, 0x0002): symbol not found in flat namespace '_ph'
-/Users/z1r0/.idapro/plugins/binexport12_ida64.dylib: can't load file
-0.00s - Debugger warning: It seems that frozen modules are being used, which may
-0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
-0.00s - to python to disable frozen modules.
-0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
-
+['/Library/Frameworks/Python.framework/Versions/3.11/bin/python3', '/path/dia2ol/diaphora/diaphora.py', '/mypath/old/afd.sys.old.sqlite', '/mypath/new/afd.sys.new.sqlite', '-o', '/mypath/new/afd.sys.new.sqlite.output.sqlite']
 WARNING: Python library 'cdifflib' not found. Installing it will significantly improve text diffing performance.
 INFO: Alternatively, you can silence this warning by changing the value of SHOW_IMPORT_WARNINGS in diaphora_config.py.
 Both numpy and Scikit Learn are needed to use local models.
@@ -153,31 +149,32 @@ Both numpy and Scikit Learn are needed to use local models.
 Error loading project specific Python script: module 'importlib' has no attribute 'util'
 
 [+] Sqlite Saved
-[+] PartialDiff
-1c0079590 | 1c007a590| WPP_SF_SLsL
-1c006e0f0 | 1c006e510| AfdReadVolatileParameters
-1c00798fc | 1c007a8fc| WPP_SF_dd
-1c00799f8 | 1c007a9f8| WPP_SF_ll
-1c00631f4 | 1c0063624| AfdTcp6RoutingQuery
-1c0087a3c | 1c0088f18| AfdCreateSecurityDescriptor
-1c00796d8 | 1c007a6d8| WPP_SF_Sll
-1c001ffb2 | 1c00207f2| AfdHasHeldPacketsFromNic
-1c0079658 | 1c007a658| WPP_SF_SlP
-1c006f92c | 1c006fd5c| AfdNotifyRemoveIoCompletion
-1c00704ec | 1c007092c| AfdTcpRoutingQuery
-1c0079a94 | 1c007aa94| WPP_SF_qqll
-1c0038630 | 1c0038eb0| AfdCancelAddressListChange
-1c00392f0 | 1c0039b70| AfdRoutingInterfaceChange
-1c0063010 | 1c0063440| AfdRoutingInterfaceQuery
-1c0064820 | 1c0064c50| AfdAddressListQuery
-1c0065c20 | 1c0066050| AfdCommonDelAddressHandler
-1c006636c | 1c00667f0| AfdCommonAddAddressHandler
-1c0066664 | 1c0066ae8| AfdNotifyIPAvailabilityConsumers
-1c00681e4 | 1c0068664| AfdInitializeAddressList
-1c006e250 | 1c006e670| AfdUnload
-1c0079944 | 1c007a944| WPP_SF_dldZ
-1c0087078 | 1c00881b0| DriverEntry
-1c0065f00 | 1c0066330| AfdNsiAddressChangeEventAtPassive
+[+] partialDiff
+1c00798fc | 1c007a8fc | WPP_SF_dd | WPP_SF_dd
+1c00799f8 | 1c007a9f8 | WPP_SF_ll | WPP_SF_ll
+1c00631f4 | 1c0063624 | AfdTcp6RoutingQuery | AfdTcp6RoutingQuery
+1c00796d8 | 1c007a6d8 | WPP_SF_Sll | WPP_SF_Sll
+1c001ffb2 | 1c00207f2 | AfdHasHeldPacketsFromNic | AfdHasHeldPacketsFromNic
+1c0087a3c | 1c0088f18 | AfdCreateSecurityDescriptor | AfdCreateSecurityDescriptor
+1c0079658 | 1c007a658 | WPP_SF_SlP | WPP_SF_SlP
+1c006f92c | 1c006fd5c | AfdNotifyRemoveIoCompletion | AfdNotifyRemoveIoCompletion
+1c00704ec | 1c007092c | AfdTcpRoutingQuery | AfdTcpRoutingQuery
+1c0079a94 | 1c007aa94 | WPP_SF_qqll | WPP_SF_qqll
+1c0038630 | 1c0038eb0 | AfdCancelAddressListChange | AfdCancelAddressListChange
+1c00392f0 | 1c0039b70 | AfdRoutingInterfaceChange | AfdRoutingInterfaceChange
+1c0063010 | 1c0063440 | AfdRoutingInterfaceQuery | AfdRoutingInterfaceQuery
+1c0064820 | 1c0064c50 | AfdAddressListQuery | AfdAddressListQuery
+1c0065c20 | 1c0066050 | AfdCommonDelAddressHandler | AfdCommonDelAddressHandler
+1c006636c | 1c00667f0 | AfdCommonAddAddressHandler | AfdCommonAddAddressHandler
+1c0066664 | 1c0066ae8 | AfdNotifyIPAvailabilityConsumers | AfdNotifyIPAvailabilityConsumers
+1c00681e4 | 1c0068664 | AfdInitializeAddressList | AfdInitializeAddressList
+1c006e0f0 | 1c006e510 | AfdReadVolatileParameters | AfdReadVolatileParameters
+1c006e250 | 1c006e670 | AfdUnload | AfdUnload
+1c0079590 | 1c007a590 | WPP_SF_SLsL | WPP_SF_SLsL
+1c0079944 | 1c007a944 | WPP_SF_dldZ | WPP_SF_dldZ
+1c0087078 | 1c00881b0 | DriverEntry | DriverEntry
+1c0065f00 | 1c0066330 | AfdNsiAddressChangeEventAtPassive | AfdNsiAddressChangeEventAtPassive
+[+] multimatchDiff
 [+] Newly added functions
 1c001c348 | wil_details_FeatureDescriptors_SkipPadding
 1c001c370 | Feature_Servicing_SiloCrashFixinAFD__private_IsEnabled
@@ -202,16 +199,18 @@ Error loading project specific Python script: module 'importlib' has no attribut
 1c0063374 | wil_RtlStagingConfig_QueryFeatureState
 1c0088078 | wil_InitializeFeatureStaging
 1c00880bc | wil_details_PopulateInitialConfiguredFeatureStates
+[+] Subtracting function
 [*] Upload Gist
-8d2e3f31cb69ef34b5dad2dfc8428699	BinaryDiff	2 files	secret	2024-12-11T02:25:21Z
-[+] in gist
-[+] Gist id = 8d2e3f31cb69ef34b5dad2dfc8428699
+1ffe49c8c83e09ac5c8e7d554b3e19df	CVE-2020-17001	2 files	secret	2025-02-25T07:17:52Z
+[-] not in gist
+[*] Gist Creat
+[+] Gist id = 03cb49cef029896af15779aeff5cca83
 
-[+] open: https://www.z1r0.top/binarydiff/?8d2e3f31cb69ef34b5dad2dfc8428699/afd.sys.x64.10.0.22621.1028.sqlite-afd.sys.x64.10.0.22621.1415.sqlite.diff
+[+] open: https://www.z1r0.top/binarydiff/?03cb49cef029896af15779aeff5cca83/afd.sys.old.sqlite-afd.sys.new.sqlite.diff
 ```
 
 会显示出对应函数修改后的函数名，以及新增函数，并且会在自己的gist仓库中会创建一个隐私仓库（默认）用来存储diff代码
-直接访问https://www.z1r0.top/binarydiff/?8d2e3f31cb69ef34b5dad2dfc8428699/afd.sys.x64.10.0.22621.1028.sqlite-afd.sys.x64.10.0.22621.1415.sqlite.diff
+直接访问https://www.z1r0.top/binarydiff/?03cb49cef029896af15779aeff5cca83/afd.sys.old.sqlite-afd.sys.new.sqlite.diff
 就可以看见diff代码
 
 ## 出现的问题

@@ -197,6 +197,8 @@ class BD():
 
             functions = self.SqliteOutput(self.old, f"select prototype, pseudocode from functions where address = 0x{address}")
             prototype, pseudocode = functions[0]
+            if not pseudocode:
+                continue
             pp1 = prototype + pseudocode
 
             functions = self.SqliteOutput(self.new, f"select prototype, pseudocode from functions where address = 0x{address2}")
@@ -240,7 +242,9 @@ class BD():
             self.GistCreat()
         else:
             li('[+] in gist')
-            match = re.search(r'^(\S+)', result)
+            #match = re.search(r'^(\S+)', result)
+            pattern = r'^([a-f0-9]{32})\s+' + re.escape(self.gist_desc) + r'\s'
+            match = re.search(pattern, result, re.MULTILINE | re.IGNORECASE)
             self.id = match.group(1)
             li('[+] Gist id = ' + self.id)
         
@@ -251,6 +255,10 @@ class BD():
 
     def main(self):
         #self.NewFuncDiff()
+        if os.path.isfile(self.file_name):
+            cmd = f'rm {self.file_name}'
+            os.system(cmd)
+            li(cmd)
         if not self.local:
             desc = B2S.GetConfig(self)
             self.gist_desc = desc['gist']['desc']
@@ -277,26 +285,32 @@ def is_elf_or_exe(file_path):
         return "Mach-O"
     else:
         return "Unknown"
+
+def get_files(directory):
+    # 只获取elf和exe文件
+    files = []
+    files_dict = {}
+    for root, dirs, filenames in os.walk(directory):
+        for filename in filenames:
+            # 构建相对路径，使得文件路径是相对于目录的
+            rel_path = os.path.relpath(os.path.join(root, filename), directory)
+            full_path = os.path.join(directory, rel_path)
+            if is_elf_or_exe(os.path.join(directory, rel_path)) in ("ELF", "EXE", "Mach-O"):
+                file_size = os.path.getsize(full_path)
+                files_dict[rel_path] = file_size
+                files.append(rel_path)
+    return set(files), files_dict
     
 def get_match_files(dir1, dir2):
-    def get_files(directory):
-        # 只获取elf和exe文件
-        files = []
-        for root, dirs, filenames in os.walk(directory):
-            for filename in filenames:
-                # 构建相对路径，使得文件路径是相对于目录的
-                rel_path = os.path.relpath(os.path.join(root, filename), directory)
-                if is_elf_or_exe(os.path.join(directory, rel_path)) in ("ELF", "EXE", "Mach-O"):
-                    #print(rel_path)
-                    files.append(rel_path)
-        return set(files)
-
-    files_in_dir1 = get_files(dir1)
-    files_in_dir2 = get_files(dir2)
-    
+    files_in_dir1, files_dict_in_dir1 = get_files(dir1)
+    files_in_dir2, files_dict_in_dir2 = get_files(dir2)
     # 找出在两个目录中都存在的文件
-    common_files = files_in_dir1 & files_in_dir2
-    
+    common_files = set()
+    for file in (files_in_dir1 & files_in_dir2):
+        #ll(file)
+        if files_dict_in_dir1[file] != files_dict_in_dir2[file]:
+            common_files.add(file)
+        
     # 找出只在第一个目录中存在的文件
     only_in_dir1 = files_in_dir1 - files_in_dir2
     
@@ -345,8 +359,9 @@ if __name__ == "__main__":
     elif args.old_dir and args.new_dir:
         old_absdir = (os.path.abspath(args.old_dir))
         new_absdir = (os.path.abspath(args.new_dir))
-        li("newdir:%s ; olddir:%s"%(old_absdir, new_absdir))
+        li("olddir:%s ; newdir:%s"%(old_absdir, new_absdir))
         matched_files, dismatched_files  = get_match_files(old_absdir, new_absdir)
+        ll(matched_files)
 
         with Pool(processes=8) as pool:
             results = [pool.apply_async(launch1diff, args=(old_absdir, new_absdir, file, args.local,)) for file in matched_files]
